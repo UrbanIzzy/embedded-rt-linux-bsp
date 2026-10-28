@@ -1,0 +1,1 @@
+KERNEL=="cpu_dma_latency", GROUP="users", MODE="0660"

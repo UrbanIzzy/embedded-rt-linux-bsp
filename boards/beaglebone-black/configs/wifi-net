@@ -1,0 +1,62 @@
+#!/bin/bash
+
+SSID="israel"
+IFACE="wlan0"
+
+case "$1" in
+  on|up)
+    echo "[+] Starting iwd and waking up $IFACE..."
+    systemctl start iwd.service
+    networkctl up "$IFACE" 2>/dev/null || ip link set "$IFACE" up
+
+    # Wait up to 5s for iwd to initialize wlan0 on D-Bus
+    for i in {1..10}; do
+      iwctl station "$IFACE" show >/dev/null 2>&1 && break
+      sleep 0.5
+    done
+
+    echo "[+] Scanning and connecting to $SSID..."
+    iwctl station "$IFACE" scan >/dev/null 2>&1
+    sleep 1
+    iwctl station "$IFACE" connect "$SSID"
+
+    # Explicitly tell systemd-networkd to acquire DHCP on the newly active link
+    networkctl reconfigure "$IFACE"
+
+    echo "[+] Waiting for DHCP lease on $IFACE..."
+    for i in {1..15}; do
+      IP=$(ip -4 -o addr show "$IFACE" | awk '{print $4}')
+      if [ -n "$IP" ]; then
+        echo "[✓] Connected! $IFACE IP: $IP"
+        ip route | grep default
+        ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 && echo "[✓] Internet is reachable." || echo "[!] Connected, but ping to 8.8.8.8 failed."
+        exit 0
+      fi
+      sleep 1
+    done
+    echo "[!] Timed out waiting for IP address. Check 'networkctl status $IFACE'."
+    exit 1
+    ;;
+
+  off|down)
+    echo "[-] Disconnecting $IFACE and powering down radio..."
+    iwctl station "$IFACE" disconnect 2>/dev/null
+    networkctl down "$IFACE" 2>/dev/null || ip link set "$IFACE" down
+    systemctl stop iwd.service
+    echo "[✓] $IFACE is completely DOWN:"
+    ip link show "$IFACE" | head -n 1
+    ;;
+
+  status)
+    echo "--- Service & Link Status ---"
+    echo -n "iwd.service: " && systemctl is-active iwd.service
+    ip -brief addr show "$IFACE"
+    echo "--- Routing Table ---"
+    ip route
+    ;;
+
+  *)
+    echo "Usage: sudo wifi-net {on|off|status}"
+    exit 1
+    ;;
+esac

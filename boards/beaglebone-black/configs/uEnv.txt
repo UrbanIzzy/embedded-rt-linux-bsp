@@ -1,0 +1,24 @@
+#Docs: http://elinux.org/Beagleboard:U-boot_partitioning_layout_2.0
+
+uname_r=6.12.111-bone-rt-r73
+
+###U-Boot Overlays###
+###Master Enable
+enable_uboot_overlays=1
+
+###Additional custom capes (Set I2C2 P9_19/P9_20 to 400kHz Fast Mode for userspace /dev/i2c-2)
+uboot_overlay_addr4=/boot/dtbs/6.12.111-bone-rt-r73/overlays/BB-I2C2-FAST-00A0.dtbo
+
+###Disable auto loading of virtual capes (Frees 24 P8/P9 pins and stops tilcdc DMA jitter)
+disable_uboot_overlay_video=1
+disable_uboot_overlay_audio=1
+#disable_uboot_overlay_emmc=1
+#disable_uboot_overlay_wireless=1
+#disable_uboot_overlay_adc=1
+
+###PRUSS OPTIONS (200MHz Deterministic Real-Time Co-Processors)
+uboot_overlay_pru=/boot/dtbs/6.12.111-bone-rt-r73/overlays/AM335X-PRU-UIO-00A0.dtbo
+
+###Kernel Command Line (with cpuidle.off=1 properly appended to cmdline)
+console=ttyS0,115200n8
+cmdline=fsck.repair=yes earlycon coherent_pool=1M net.ifnames=0 lpj=1990656 rng_core.default_quality=100 cpuidle.off=1
